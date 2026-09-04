@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Ride Dispatch — Live Dashboard</title>
+  <script src="main.js"></script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 2rem auto;
+      max-width: 720px;
+      background: #0f172a;
+      color: #e2e8f0;
+    }
+    h1 { font-size: 1.4rem; }
+    h2 { font-size: 1rem; margin: 0 0 0.5rem 0; color: #94a3b8; }
+    .panel {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+    .controls { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    input {
+      flex: 1;
+      min-width: 120px;
+      padding: 0.5rem;
+      border-radius: 4px;
+      border: 1px solid #334155;
+      background: #0f172a;
+      color: #e2e8f0;
+    }
+    button {
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      border: none;
+      background: #3b82f6;
+      color: white;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    button:hover { background: #2563eb; }
+    .form-error {
+      background: #7f1d1d;
+      border: 1px solid #ef4444;
+      color: #fecaca;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      margin-bottom: 1rem;
+    }
+    table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
+    th, td { border: 1px solid #334155; padding: 0.5rem 1rem; text-align: left; }
+    th { background: #1e293b; }
+    .empty-state { margin-top: 1rem; color: #94a3b8; font-style: italic; }
+    .status-matched { color: #22c55e; font-weight: 600; }
+    .status-requested { color: #eab308; font-weight: 600; }
+    .status-no_drivers_available { color: #ef4444; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div id="elm-app"></div>
+
+  <script>
+    // This is the JS transport shim described in Main.elm's module doc:
+    // it owns the raw WebSocket connection and forwards decoded events
+    // into Elm via ports. Elm never touches the socket directly.
+    //
+    // This talks to Phoenix's WebSocket wire protocol (v2 JSON
+    // serializer) directly, with no external phoenix.js dependency -
+    // every message is a 5-element array:
+    //   [join_ref, ref, topic, event, payload]
+    // See https://hexdocs.pm/phoenix/writing_a_channels_client.html
+    var app = Elm.Main.init({ node: document.getElementById("elm-app") });
+
+    var ws = new WebSocket("ws://localhost:4000/socket/websocket?vsn=2.0.0");
+    var refCounter = 0;
+    var joinRefs = {}; // topic -> join_ref used for that channel
+
+    function nextRef() {
+      refCounter += 1;
+      return refCounter.toString();
+    }
+
+    function send(joinRef, ref, topic, event, payload) {
+      ws.send(JSON.stringify([joinRef, ref, topic, event, payload]));
+    }
+
+    function joinChannel(rideId) {
+      var topic = "ride:" + rideId;
+      if (joinRefs[topic]) {
+        return; // already joined
+      }
+      var ref = nextRef();
+      joinRefs[topic] = ref;
+      send(ref, ref, topic, "phx_join", {});
+    }
+
+    function pushOnTopic(rideId, event, payload) {
+      joinChannel(rideId); // make sure we've joined before pushing
+      var topic = "ride:" + rideId;
+      send(joinRefs[topic], nextRef(), topic, event, payload);
+    }
+
+    ws.onopen = function () {
+      console.log("raw websocket connected");
+      // Phoenix disconnects idle sockets without periodic heartbeats.
+      setInterval(function () {
+        send(null, nextRef(), "phoenix", "heartbeat", {});
+      }, 25000);
+    };
+
+    ws.onmessage = function (evt) {
+      var msg = JSON.parse(evt.data);
+      var topic = msg[2];
+      var event = msg[3];
+      var payload = msg[4];
+
+      if (event === "phx_reply") {
+        console.log("joined " + topic, payload);
+      } else if (event === "ride_update") {
+        app.ports.rideUpdateReceived.send(payload);
+      }
+    };
+
+    ws.onerror = function (e) {
+      console.error("websocket error", e);
+    };
+
+    ws.onclose = function () {
+      console.log("websocket closed");
+    };
+
+    // Wired to the three buttons in Main.elm: "Watch Ride", "Register
+    // Driver", and "Request Ride". Elm validates and encodes the form
+    // fields; this JS just forwards them onto the channel.
+    app.ports.joinRideChannel.subscribe(joinChannel);
+
+    app.ports.registerDriver.subscribe(function (data) {
+      pushOnTopic(data.rideId, "register_driver", {
+        driver_id: data.driverId,
+        lat: data.lat,
+        lng: data.lng
+      });
+    });
+
+    app.ports.requestRide.subscribe(function (data) {
+      pushOnTopic(data.rideId, "request_ride", {
+        rider_id: data.riderId,
+        lat: data.lat,
+        lng: data.lng
+      });
+    });
+  </script>
+</body>
+</html>

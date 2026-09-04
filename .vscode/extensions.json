@@ -1,0 +1,9 @@
+{
+  "recommendations": [
+    "jakebecker.elixir-ls",
+    "haskell.haskell",
+    "elm-tooling.elm-language-client-vscode",
+    "scalameta.metals",
+    "betterthantomorrow.calva"
+  ]
+}

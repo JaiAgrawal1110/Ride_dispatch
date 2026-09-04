@@ -1,0 +1,114 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Dispatch Core: Install Elixir Deps",
+      "type": "shell",
+      "command": "mix deps.get",
+      "options": {
+        "cwd": "${workspaceFolder}/dispatch_core"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Dispatch Core: Run",
+      "type": "shell",
+      "command": "mix run --no-halt",
+      "options": {
+        "cwd": "${workspaceFolder}/dispatch_core"
+      },
+      "dependsOn": ["Dispatch Core: Install Elixir Deps"],
+      "isBackground": true,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Dashboard: Build Elm App",
+      "type": "shell",
+      "command": "elm make src/Main.elm --output=main.js",
+      "options": {
+        "cwd": "${workspaceFolder}/dashboard"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "ETA Service: Run (Haskell)",
+      "type": "shell",
+      "command": "stack build && stack exec eta-service-exe",
+      "options": {
+        "cwd": "${workspaceFolder}/eta_service"
+      },
+      "isBackground": true,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Fare Service: Run (Scala)",
+      "type": "shell",
+      "command": "mkdir -p out && scalac -d out src/main/scala/fareservice/*.scala && java -cp \"out:$(find / -name scala-library.jar 2>/dev/null | head -1)\" fareservice.Main",
+      "options": {
+        "cwd": "${workspaceFolder}/fare_service"
+      },
+      "isBackground": true,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Analytics Service: Run (Clojure)",
+      "type": "shell",
+      "command": "java -cp \"src:$(find / -name clojure-1.11.jar 2>/dev/null | head -1)\" clojure.main -m rideanalytics.main",
+      "options": {
+        "cwd": "${workspaceFolder}/analytics_service"
+      },
+      "isBackground": true,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Check All Service Health",
+      "type": "shell",
+      "command": "echo 'Haskell (4001):'; curl -s http://localhost:4001/health; echo; echo 'Scala (4002):'; curl -s http://localhost:4002/health; echo; echo 'Clojure (4003):'; curl -s http://localhost:4003/health; echo",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Start All Services",
+      "dependsOn": [
+        "Dispatch Core: Run",
+        "Dashboard: Build Elm App",
+        "ETA Service: Run (Haskell)",
+        "Fare Service: Run (Scala)",
+        "Analytics Service: Run (Clojure)"
+      ],
+      "dependsOrder": "parallel",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    }
+  ]
+}

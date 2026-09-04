@@ -1,0 +1,33 @@
+name: eta-service
+version: 0.1.0.0
+synopsis: Standalone ETA / route estimation service for the Mini Ride-Dispatch Simulator
+
+dependencies:
+  - base >= 4.7 && < 5
+  - scotty
+  - aeson
+  - text
+
+library:
+  source-dirs: src
+  exposed-modules:
+    - Eta
+
+executables:
+  eta-service-exe:
+    main: Main.hs
+    source-dirs: app
+    dependencies:
+      - eta-service
+      - scotty
+      - aeson
+    ghc-options:
+      - -Wall
+
+tests:
+  eta-service-test:
+    main: Spec.hs
+    source-dirs: test
+    dependencies:
+      - eta-service
+      - hspec
