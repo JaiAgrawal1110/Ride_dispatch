@@ -19,7 +19,10 @@ defmodule DispatchCore.MixProject do
   def application do
     [
       mod: {DispatchCore.Application, []},
-      extra_applications: [:logger]
+      # :inets (for :httpc) and :ssl are needed by
+      # DispatchCore.ExternalServices to call the standalone Haskell
+      # and Scala services over HTTP.
+      extra_applications: [:logger, :inets, :ssl]
     ]
   end
 

@@ -1,0 +1,13 @@
+{
+  "name": "ride-dispatch-orchestrator",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Starts every service in the Mini Ride-Dispatch Simulator with one command, and serves the dashboard plus proxied APIs behind a single port.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "http-proxy": "^1.18.1"
+  }
+}

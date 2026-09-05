@@ -9,6 +9,7 @@ Lisp syntax, immutable-data-first, everything-is-a-map/seq.
 ## Files
 
 ```
+deps.edn    - tells the Clojure CLI where the source lives (:paths ["src"])
 src/rideanalytics/
   core.clj    - pure aggregate functions (average-fare, rides-per-hour, driver-utilization, summarize)
   main.clj    - HTTP wrapper using the JDK's com.sun.net.httpserver via Java interop
@@ -61,12 +62,25 @@ Malformed and non-map EDN bodies correctly return 400, and `GET
 
 ## Running it yourself
 
+**If you're using the modern Clojure CLI** (the `clj-msi` Windows
+installer, or the official install script on Mac/Linux — what actually
+got used and confirmed working on Windows during this project's
+development), a `deps.edn` file is included in this folder so the CLI
+knows where the source lives:
+
+```bash
+clojure -M -m rideanalytics.main
+```
+
+**If you have a bare `clojure.jar`** and prefer to build the classpath
+by hand:
+
 ```bash
 CLOJURE_JAR=$(find / -name "clojure-1.11.jar" 2>/dev/null | head -1)
 java -cp "src:$CLOJURE_JAR" clojure.main -m rideanalytics.main
 ```
 
-The service listens on port 4003.
+Either way, the service listens on port 4003.
 
 ```bash
 curl http://localhost:4003/health
@@ -75,6 +89,12 @@ curl -X POST http://localhost:4003/analytics --data-binary \
   '{:rides [{:fare 120.0 :driver-id "d1"} {:fare 95.0 :driver-id "d2"}]
     :driver-ids ["d1" "d2" "d3" "d4"]
     :window-hours 3}'
+```
+
+On Windows PowerShell:
+
+```powershell
+Invoke-RestMethod -Uri http://localhost:4003/analytics -Method Post -Body '{:rides [{:fare 120.0 :driver-id "d1"}] :driver-ids ["d1" "d2"] :window-hours 2}'
 ```
 
 ## Compiling ahead-of-time (optional)

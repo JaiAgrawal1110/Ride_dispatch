@@ -5163,7 +5163,7 @@ var $elm$core$Platform$Cmd$batch = _Platform_batch;
 var $elm$core$Platform$Cmd$none = $elm$core$Platform$Cmd$batch(_List_Nil);
 var $author$project$Main$init = function (_v0) {
 	return _Utils_Tuple2(
-		{driverIdInput: '', driverLatInput: '', driverLngInput: '', formError: $elm$core$Maybe$Nothing, rideIdInput: '', riderIdInput: '', riderLatInput: '', riderLngInput: '', rides: _List_Nil},
+		{demandLevelInput: '', destLatInput: '', destLngInput: '', driverIdInput: '', driverLatInput: '', driverLngInput: '', formError: $elm$core$Maybe$Nothing, rideIdInput: '', riderIdInput: '', riderLatInput: '', riderLngInput: '', rides: _List_Nil},
 		$elm$core$Platform$Cmd$none);
 };
 var $author$project$Main$RideUpdateArrived = function (a) {
@@ -5176,6 +5176,7 @@ var $author$project$Main$subscriptions = function (_v0) {
 };
 var $elm$json$Json$Decode$decodeValue = _Json_run;
 var $elm$json$Json$Encode$float = _Json_wrap;
+var $elm$json$Json$Encode$int = _Json_wrap;
 var $elm$json$Json$Encode$string = _Json_wrap;
 var $author$project$Main$joinRideChannel = _Platform_outgoingPort('joinRideChannel', $elm$json$Json$Encode$string);
 var $elm$json$Json$Encode$object = function (pairs) {
@@ -5244,6 +5245,20 @@ var $author$project$Main$parseDriverForm = function (model) {
 		}
 	}
 };
+var $author$project$Main$optionalDemandLevel = function (raw) {
+	var trimmed = $elm$core$String$trim(raw);
+	if ($elm$core$String$isEmpty(trimmed)) {
+		return $elm$core$Result$Ok(0);
+	} else {
+		var _v0 = $elm$core$String$toInt(trimmed);
+		if (_v0.$ === 'Just') {
+			var n = _v0.a;
+			return $elm$core$Result$Ok(n);
+		} else {
+			return $elm$core$Result$Err('Demand level must be a whole number.');
+		}
+	}
+};
 var $author$project$Main$parseRideRequestForm = function (model) {
 	var _v0 = $author$project$Main$requireRideId(model);
 	if (_v0.$ === 'Err') {
@@ -5269,8 +5284,29 @@ var $author$project$Main$parseRideRequestForm = function (model) {
 					return $elm$core$Result$Err(e);
 				} else {
 					var lng = _v3.a;
-					return $elm$core$Result$Ok(
-						{lat: lat, lng: lng, rideId: rideId, riderId: riderId});
+					var _v4 = A2($author$project$Main$requireFloat, 'Destination latitude', model.destLatInput);
+					if (_v4.$ === 'Err') {
+						var e = _v4.a;
+						return $elm$core$Result$Err(e);
+					} else {
+						var destLat = _v4.a;
+						var _v5 = A2($author$project$Main$requireFloat, 'Destination longitude', model.destLngInput);
+						if (_v5.$ === 'Err') {
+							var e = _v5.a;
+							return $elm$core$Result$Err(e);
+						} else {
+							var destLng = _v5.a;
+							var _v6 = $author$project$Main$optionalDemandLevel(model.demandLevelInput);
+							if (_v6.$ === 'Err') {
+								var e = _v6.a;
+								return $elm$core$Result$Err(e);
+							} else {
+								var demandLevel = _v6.a;
+								return $elm$core$Result$Ok(
+									{demandLevel: demandLevel, destLat: destLat, destLng: destLng, lat: lat, lng: lng, rideId: rideId, riderId: riderId});
+							}
+						}
+					}
 				}
 			}
 		}
@@ -5278,12 +5314,13 @@ var $author$project$Main$parseRideRequestForm = function (model) {
 };
 var $author$project$Main$registerDriver = _Platform_outgoingPort('registerDriver', $elm$core$Basics$identity);
 var $author$project$Main$requestRide = _Platform_outgoingPort('requestRide', $elm$core$Basics$identity);
-var $author$project$Main$Ride = F3(
-	function (rideId, status, driverId) {
-		return {driverId: driverId, rideId: rideId, status: status};
+var $author$project$Main$Ride = F6(
+	function (rideId, status, driverId, distanceKm, etaMinutes, fare) {
+		return {distanceKm: distanceKm, driverId: driverId, etaMinutes: etaMinutes, fare: fare, rideId: rideId, status: status};
 	});
 var $elm$json$Json$Decode$field = _Json_decodeField;
-var $elm$json$Json$Decode$map3 = _Json_map3;
+var $elm$json$Json$Decode$float = _Json_decodeFloat;
+var $elm$json$Json$Decode$map6 = _Json_map6;
 var $elm$json$Json$Decode$oneOf = _Json_oneOf;
 var $elm$json$Json$Decode$maybe = function (decoder) {
 	return $elm$json$Json$Decode$oneOf(
@@ -5294,13 +5331,19 @@ var $elm$json$Json$Decode$maybe = function (decoder) {
 			]));
 };
 var $elm$json$Json$Decode$string = _Json_decodeString;
-var $author$project$Main$rideDecoder = A4(
-	$elm$json$Json$Decode$map3,
+var $author$project$Main$rideDecoder = A7(
+	$elm$json$Json$Decode$map6,
 	$author$project$Main$Ride,
 	A2($elm$json$Json$Decode$field, 'ride_id', $elm$json$Json$Decode$string),
 	A2($elm$json$Json$Decode$field, 'status', $elm$json$Json$Decode$string),
 	$elm$json$Json$Decode$maybe(
-		A2($elm$json$Json$Decode$field, 'driver_id', $elm$json$Json$Decode$string)));
+		A2($elm$json$Json$Decode$field, 'driver_id', $elm$json$Json$Decode$string)),
+	$elm$json$Json$Decode$maybe(
+		A2($elm$json$Json$Decode$field, 'distance_km', $elm$json$Json$Decode$float)),
+	$elm$json$Json$Decode$maybe(
+		A2($elm$json$Json$Decode$field, 'eta_minutes', $elm$json$Json$Decode$float)),
+	$elm$json$Json$Decode$maybe(
+		A2($elm$json$Json$Decode$field, 'fare', $elm$json$Json$Decode$float)));
 var $elm$core$List$filter = F2(
 	function (isGood, list) {
 		return A3(
@@ -5446,6 +5489,27 @@ var $author$project$Main$update = F2(
 						model,
 						{riderLngInput: newVal}),
 					$elm$core$Platform$Cmd$none);
+			case 'DestLatChanged':
+				var newVal = msg.a;
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{destLatInput: newVal}),
+					$elm$core$Platform$Cmd$none);
+			case 'DestLngChanged':
+				var newVal = msg.a;
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{destLngInput: newVal}),
+					$elm$core$Platform$Cmd$none);
+			case 'DemandLevelChanged':
+				var newVal = msg.a;
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{demandLevelInput: newVal}),
+					$elm$core$Platform$Cmd$none);
 			default:
 				var _v4 = $author$project$Main$parseRideRequestForm(model);
 				if (_v4.$ === 'Err') {
@@ -5478,11 +5542,29 @@ var $author$project$Main$update = F2(
 										$elm$json$Json$Encode$float(form.lat)),
 										_Utils_Tuple2(
 										'lng',
-										$elm$json$Json$Encode$float(form.lng))
+										$elm$json$Json$Encode$float(form.lng)),
+										_Utils_Tuple2(
+										'destLat',
+										$elm$json$Json$Encode$float(form.destLat)),
+										_Utils_Tuple2(
+										'destLng',
+										$elm$json$Json$Encode$float(form.destLng)),
+										_Utils_Tuple2(
+										'demandLevel',
+										$elm$json$Json$Encode$int(form.demandLevel))
 									]))));
 				}
 		}
 	});
+var $author$project$Main$DemandLevelChanged = function (a) {
+	return {$: 'DemandLevelChanged', a: a};
+};
+var $author$project$Main$DestLatChanged = function (a) {
+	return {$: 'DestLatChanged', a: a};
+};
+var $author$project$Main$DestLngChanged = function (a) {
+	return {$: 'DestLngChanged', a: a};
+};
 var $author$project$Main$DriverIdChanged = function (a) {
 	return {$: 'DriverIdChanged', a: a};
 };
@@ -5602,6 +5684,20 @@ var $author$project$Main$viewFormError = function (maybeError) {
 				]));
 	}
 };
+var $elm$core$String$fromFloat = _String_fromNumber;
+var $elm$core$Basics$round = _Basics_round;
+var $author$project$Main$toFixed2 = function (value) {
+	return $elm$core$Basics$round(value * 100) / 100;
+};
+var $author$project$Main$formatMaybeFloat = function (maybeValue) {
+	if (maybeValue.$ === 'Nothing') {
+		return '—';
+	} else {
+		var value = maybeValue.a;
+		return $elm$core$String$fromFloat(
+			$author$project$Main$toFixed2(value));
+	}
+};
 var $elm$html$Html$td = _VirtualDom_node('td');
 var $elm$core$Maybe$withDefault = F2(
 	function (_default, maybe) {
@@ -5642,6 +5738,30 @@ var $author$project$Main$viewRideRow = function (ride) {
 					[
 						$elm$html$Html$text(
 						A2($elm$core$Maybe$withDefault, '—', ride.driverId))
+					])),
+				A2(
+				$elm$html$Html$td,
+				_List_Nil,
+				_List_fromArray(
+					[
+						$elm$html$Html$text(
+						$author$project$Main$formatMaybeFloat(ride.distanceKm))
+					])),
+				A2(
+				$elm$html$Html$td,
+				_List_Nil,
+				_List_fromArray(
+					[
+						$elm$html$Html$text(
+						$author$project$Main$formatMaybeFloat(ride.etaMinutes))
+					])),
+				A2(
+				$elm$html$Html$td,
+				_List_Nil,
+				_List_fromArray(
+					[
+						$elm$html$Html$text(
+						$author$project$Main$formatMaybeFloat(ride.fare))
 					]))
 			]));
 };
@@ -5808,7 +5928,7 @@ var $author$project$Main$view = function (model) {
 								$elm$html$Html$input,
 								_List_fromArray(
 									[
-										$elm$html$Html$Attributes$placeholder('Latitude'),
+										$elm$html$Html$Attributes$placeholder('Pickup latitude'),
 										$elm$html$Html$Attributes$type_('text'),
 										$elm$html$Html$Attributes$value(model.riderLatInput),
 										$elm$html$Html$Events$onInput($author$project$Main$RiderLatChanged)
@@ -5818,10 +5938,49 @@ var $author$project$Main$view = function (model) {
 								$elm$html$Html$input,
 								_List_fromArray(
 									[
-										$elm$html$Html$Attributes$placeholder('Longitude'),
+										$elm$html$Html$Attributes$placeholder('Pickup longitude'),
 										$elm$html$Html$Attributes$type_('text'),
 										$elm$html$Html$Attributes$value(model.riderLngInput),
 										$elm$html$Html$Events$onInput($author$project$Main$RiderLngChanged)
+									]),
+								_List_Nil)
+							])),
+						A2(
+						$elm$html$Html$div,
+						_List_fromArray(
+							[
+								$elm$html$Html$Attributes$class('controls')
+							]),
+						_List_fromArray(
+							[
+								A2(
+								$elm$html$Html$input,
+								_List_fromArray(
+									[
+										$elm$html$Html$Attributes$placeholder('Destination latitude'),
+										$elm$html$Html$Attributes$type_('text'),
+										$elm$html$Html$Attributes$value(model.destLatInput),
+										$elm$html$Html$Events$onInput($author$project$Main$DestLatChanged)
+									]),
+								_List_Nil),
+								A2(
+								$elm$html$Html$input,
+								_List_fromArray(
+									[
+										$elm$html$Html$Attributes$placeholder('Destination longitude'),
+										$elm$html$Html$Attributes$type_('text'),
+										$elm$html$Html$Attributes$value(model.destLngInput),
+										$elm$html$Html$Events$onInput($author$project$Main$DestLngChanged)
+									]),
+								_List_Nil),
+								A2(
+								$elm$html$Html$input,
+								_List_fromArray(
+									[
+										$elm$html$Html$Attributes$placeholder('Demand level (0-3, optional)'),
+										$elm$html$Html$Attributes$type_('text'),
+										$elm$html$Html$Attributes$value(model.demandLevelInput),
+										$elm$html$Html$Events$onInput($author$project$Main$DemandLevelChanged)
 									]),
 								_List_Nil),
 								A2(
@@ -5880,6 +6039,27 @@ var $author$project$Main$view = function (model) {
 										_List_fromArray(
 											[
 												$elm$html$Html$text('Driver')
+											])),
+										A2(
+										$elm$html$Html$th,
+										_List_Nil,
+										_List_fromArray(
+											[
+												$elm$html$Html$text('Distance (km)')
+											])),
+										A2(
+										$elm$html$Html$th,
+										_List_Nil,
+										_List_fromArray(
+											[
+												$elm$html$Html$text('ETA (min)')
+											])),
+										A2(
+										$elm$html$Html$th,
+										_List_Nil,
+										_List_fromArray(
+											[
+												$elm$html$Html$text('Fare')
 											]))
 									]))
 							])),

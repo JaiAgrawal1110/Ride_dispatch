@@ -8,7 +8,7 @@
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       margin: 2rem auto;
-      max-width: 720px;
+      max-width: 760px;
       background: #0f172a;
       color: #e2e8f0;
     }
@@ -21,7 +21,8 @@
       padding: 1rem;
       margin-bottom: 1rem;
     }
-    .controls { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .controls { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+    .controls:last-child { margin-bottom: 0; }
     input {
       flex: 1;
       min-width: 120px;
@@ -50,7 +51,7 @@
       margin-bottom: 1rem;
     }
     table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
-    th, td { border: 1px solid #334155; padding: 0.5rem 1rem; text-align: left; }
+    th, td { border: 1px solid #334155; padding: 0.5rem 0.75rem; text-align: left; font-size: 0.9rem; }
     th { background: #1e293b; }
     .empty-state { margin-top: 1rem; color: #94a3b8; font-style: italic; }
     .status-matched { color: #22c55e; font-weight: 600; }
@@ -73,7 +74,18 @@
     // See https://hexdocs.pm/phoenix/writing_a_channels_client.html
     var app = Elm.Main.init({ node: document.getElementById("elm-app") });
 
-    var ws = new WebSocket("ws://localhost:4000/socket/websocket?vsn=2.0.0");
+    // Works two ways: opened directly as a file (talks straight to
+    // dispatch_core on port 4000), or served by the orchestrator
+    // (talks to whatever host:port served this page, which proxies
+    // /socket through to dispatch_core). This is what makes the same
+    // dashboard work whether you're running it standalone or through
+    // `npm start` in orchestrator/.
+    var isFileProtocol = window.location.protocol === "file:";
+    var wsUrl = isFileProtocol
+      ? "ws://localhost:4000/socket/websocket?vsn=2.0.0"
+      : "ws://" + window.location.host + "/socket/websocket?vsn=2.0.0";
+
+    var ws = new WebSocket(wsUrl);
     var refCounter = 0;
     var joinRefs = {}; // topic -> join_ref used for that channel
 
@@ -103,7 +115,7 @@
     }
 
     ws.onopen = function () {
-      console.log("raw websocket connected");
+      console.log("raw websocket connected to " + wsUrl);
       // Phoenix disconnects idle sockets without periodic heartbeats.
       setInterval(function () {
         send(null, nextRef(), "phoenix", "heartbeat", {});
@@ -133,7 +145,9 @@
 
     // Wired to the three buttons in Main.elm: "Watch Ride", "Register
     // Driver", and "Request Ride". Elm validates and encodes the form
-    // fields; this JS just forwards them onto the channel.
+    // fields; this JS just forwards them onto the channel, translating
+    // Elm's camelCase field names into the snake_case keys
+    // dispatch_core's channel expects.
     app.ports.joinRideChannel.subscribe(joinChannel);
 
     app.ports.registerDriver.subscribe(function (data) {
@@ -148,7 +162,10 @@
       pushOnTopic(data.rideId, "request_ride", {
         rider_id: data.riderId,
         lat: data.lat,
-        lng: data.lng
+        lng: data.lng,
+        dest_lat: data.destLat,
+        dest_lng: data.destLng,
+        demand_level: data.demandLevel
       });
     });
   </script>

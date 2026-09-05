@@ -13,9 +13,11 @@ index.html, and this module talks to that JS through ports:
 
 This keeps all the state management, decoding, and rendering in Elm's
 pure, strictly-typed world - the JS side is a deliberately thin, "dumb"
-transport shim. Everything a person does with this dashboard - watching
-a ride, registering a driver, requesting a ride - happens through real
-form controls instead of the browser's dev console.
+transport shim. Requesting a ride now includes a destination and an
+optional demand level, since dispatch_core uses those to call out to
+the Haskell ETA service and Scala fare service once a ride is matched -
+the fare and ETA columns in the table below are the visible result of
+that call chain.
 
 -}
 
@@ -51,6 +53,9 @@ type alias Ride =
     { rideId : String
     , status : String
     , driverId : Maybe String
+    , distanceKm : Maybe Float
+    , etaMinutes : Maybe Float
+    , fare : Maybe Float
     }
 
 
@@ -67,6 +72,9 @@ type alias RideRequestForm =
     , riderId : String
     , lat : Float
     , lng : Float
+    , destLat : Float
+    , destLng : Float
+    , demandLevel : Int
     }
 
 
@@ -79,6 +87,9 @@ type alias Model =
     , riderIdInput : String
     , riderLatInput : String
     , riderLngInput : String
+    , destLatInput : String
+    , destLngInput : String
+    , demandLevelInput : String
     , formError : Maybe String
     }
 
@@ -93,6 +104,9 @@ init _ =
       , riderIdInput = ""
       , riderLatInput = ""
       , riderLngInput = ""
+      , destLatInput = ""
+      , destLngInput = ""
+      , demandLevelInput = ""
       , formError = Nothing
       }
     , Cmd.none
@@ -114,15 +128,21 @@ type Msg
     | RiderIdChanged String
     | RiderLatChanged String
     | RiderLngChanged String
+    | DestLatChanged String
+    | DestLngChanged String
+    | DemandLevelChanged String
     | RequestRideClicked
 
 
 rideDecoder : Decoder Ride
 rideDecoder =
-    Decode.map3 Ride
+    Decode.map6 Ride
         (Decode.field "ride_id" Decode.string)
         (Decode.field "status" Decode.string)
         (Decode.maybe (Decode.field "driver_id" Decode.string))
+        (Decode.maybe (Decode.field "distance_km" Decode.float))
+        (Decode.maybe (Decode.field "eta_minutes" Decode.float))
+        (Decode.maybe (Decode.field "fare" Decode.float))
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -183,6 +203,15 @@ update msg model =
         RiderLngChanged newVal ->
             ( { model | riderLngInput = newVal }, Cmd.none )
 
+        DestLatChanged newVal ->
+            ( { model | destLatInput = newVal }, Cmd.none )
+
+        DestLngChanged newVal ->
+            ( { model | destLngInput = newVal }, Cmd.none )
+
+        DemandLevelChanged newVal ->
+            ( { model | demandLevelInput = newVal }, Cmd.none )
+
         RequestRideClicked ->
             case parseRideRequestForm model of
                 Err err ->
@@ -196,6 +225,9 @@ update msg model =
                             , ( "riderId", Encode.string form.riderId )
                             , ( "lat", Encode.float form.lat )
                             , ( "lng", Encode.float form.lng )
+                            , ( "destLat", Encode.float form.destLat )
+                            , ( "destLng", Encode.float form.destLng )
+                            , ( "demandLevel", Encode.int form.demandLevel )
                             ]
                         )
                     )
@@ -232,6 +264,26 @@ requireFloat label raw =
 
         Nothing ->
             Err (label ++ " must be a number.")
+
+
+{-| Demand level is optional - an empty box means "no surge" (0).
+-}
+optionalDemandLevel : String -> Result String Int
+optionalDemandLevel raw =
+    let
+        trimmed =
+            String.trim raw
+    in
+    if String.isEmpty trimmed then
+        Ok 0
+
+    else
+        case String.toInt trimmed of
+            Just n ->
+                Ok n
+
+            Nothing ->
+                Err "Demand level must be a whole number."
 
 
 {-| Validates all four fields of the driver-registration form, in order,
@@ -287,7 +339,30 @@ parseRideRequestForm model =
                                     Err e
 
                                 Ok lng ->
-                                    Ok { rideId = rideId, riderId = riderId, lat = lat, lng = lng }
+                                    case requireFloat "Destination latitude" model.destLatInput of
+                                        Err e ->
+                                            Err e
+
+                                        Ok destLat ->
+                                            case requireFloat "Destination longitude" model.destLngInput of
+                                                Err e ->
+                                                    Err e
+
+                                                Ok destLng ->
+                                                    case optionalDemandLevel model.demandLevelInput of
+                                                        Err e ->
+                                                            Err e
+
+                                                        Ok demandLevel ->
+                                                            Ok
+                                                                { rideId = rideId
+                                                                , riderId = riderId
+                                                                , lat = lat
+                                                                , lng = lng
+                                                                , destLat = destLat
+                                                                , destLng = destLng
+                                                                , demandLevel = demandLevel
+                                                                }
 
 
 
@@ -358,17 +433,40 @@ view model =
                     ]
                     []
                 , input
-                    [ placeholder "Latitude"
+                    [ placeholder "Pickup latitude"
                     , type_ "text"
                     , value model.riderLatInput
                     , onInput RiderLatChanged
                     ]
                     []
                 , input
-                    [ placeholder "Longitude"
+                    [ placeholder "Pickup longitude"
                     , type_ "text"
                     , value model.riderLngInput
                     , onInput RiderLngChanged
+                    ]
+                    []
+                ]
+            , div [ class "controls" ]
+                [ input
+                    [ placeholder "Destination latitude"
+                    , type_ "text"
+                    , value model.destLatInput
+                    , onInput DestLatChanged
+                    ]
+                    []
+                , input
+                    [ placeholder "Destination longitude"
+                    , type_ "text"
+                    , value model.destLngInput
+                    , onInput DestLngChanged
+                    ]
+                    []
+                , input
+                    [ placeholder "Demand level (0-3, optional)"
+                    , type_ "text"
+                    , value model.demandLevelInput
+                    , onInput DemandLevelChanged
                     ]
                     []
                 , button [ onClick RequestRideClicked ] [ text "Request Ride" ]
@@ -384,6 +482,9 @@ view model =
                         [ th [] [ text "Ride ID" ]
                         , th [] [ text "Status" ]
                         , th [] [ text "Driver" ]
+                        , th [] [ text "Distance (km)" ]
+                        , th [] [ text "ETA (min)" ]
+                        , th [] [ text "Fare" ]
                         ]
                     ]
                 , tbody [] (List.map viewRideRow model.rides)
@@ -407,7 +508,28 @@ viewRideRow ride =
         [ td [] [ text ride.rideId ]
         , td [ class ("status-" ++ ride.status) ] [ text ride.status ]
         , td [] [ text (Maybe.withDefault "—" ride.driverId) ]
+        , td [] [ text (formatMaybeFloat ride.distanceKm) ]
+        , td [] [ text (formatMaybeFloat ride.etaMinutes) ]
+        , td [] [ text (formatMaybeFloat ride.fare) ]
         ]
+
+
+formatMaybeFloat : Maybe Float -> String
+formatMaybeFloat maybeValue =
+    case maybeValue of
+        Nothing ->
+            "—"
+
+        Just value ->
+            String.fromFloat (toFixed2 value)
+
+
+{-| Rounds to 2 decimal places for display. Not exact banker's rounding,
+just good enough for showing a fare or ETA on screen.
+-}
+toFixed2 : Float -> Float
+toFixed2 value =
+    toFloat (round (value * 100)) / 100
 
 
 

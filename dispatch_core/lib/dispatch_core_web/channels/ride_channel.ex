@@ -17,9 +17,28 @@ defmodule DispatchCoreWeb.RideChannel do
   end
 
   @impl true
-  def handle_in("request_ride", %{"rider_id" => rider_id, "lat" => lat, "lng" => lng}, socket) do
+  def handle_in(
+        "request_ride",
+        %{
+          "rider_id" => rider_id,
+          "lat" => lat,
+          "lng" => lng,
+          "dest_lat" => dest_lat,
+          "dest_lng" => dest_lng
+        } = payload,
+        socket
+      ) do
     ride_id = socket.assigns.ride_id
-    RideServer.request_ride(ride_id, rider_id, {lat * 1.0, lng * 1.0})
+    demand_level = Map.get(payload, "demand_level", 0)
+
+    RideServer.request_ride(
+      ride_id,
+      rider_id,
+      {lat * 1.0, lng * 1.0},
+      {dest_lat * 1.0, dest_lng * 1.0},
+      demand_level
+    )
+
     {:noreply, socket}
   end
 
@@ -50,7 +69,10 @@ defmodule DispatchCoreWeb.RideChannel do
     push(socket, "ride_update", %{
       ride_id: state.ride_id,
       status: to_string(state.status),
-      driver_id: state.driver_id
+      driver_id: state.driver_id,
+      distance_km: state.distance_km,
+      eta_minutes: state.eta_minutes,
+      fare: state.fare
     })
 
     {:noreply, socket}

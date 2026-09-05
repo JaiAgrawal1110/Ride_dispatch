@@ -2,6 +2,34 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "Orchestrator: Install",
+      "type": "shell",
+      "command": "npm install",
+      "options": {
+        "cwd": "${workspaceFolder}/orchestrator"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Orchestrator: Start Everything (One Command)",
+      "type": "shell",
+      "command": "npm start",
+      "options": {
+        "cwd": "${workspaceFolder}/orchestrator"
+      },
+      "dependsOn": ["Orchestrator: Install"],
+      "isBackground": true,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
       "label": "Dispatch Core: Install Elixir Deps",
       "type": "shell",
       "command": "mix deps.get",
@@ -59,7 +87,7 @@
     {
       "label": "Fare Service: Run (Scala)",
       "type": "shell",
-      "command": "mkdir -p out && scalac -d out src/main/scala/fareservice/*.scala && java -cp \"out:$(find / -name scala-library.jar 2>/dev/null | head -1)\" fareservice.Main",
+      "command": "scala run src/main/scala/fareservice",
       "options": {
         "cwd": "${workspaceFolder}/fare_service"
       },
@@ -73,7 +101,7 @@
     {
       "label": "Analytics Service: Run (Clojure)",
       "type": "shell",
-      "command": "java -cp \"src:$(find / -name clojure-1.11.jar 2>/dev/null | head -1)\" clojure.main -m rideanalytics.main",
+      "command": "clojure -M -m rideanalytics.main",
       "options": {
         "cwd": "${workspaceFolder}/analytics_service"
       },
@@ -95,7 +123,7 @@
       "problemMatcher": []
     },
     {
-      "label": "Start All Services",
+      "label": "Start All Services (5 Terminals)",
       "dependsOn": [
         "Dispatch Core: Run",
         "Dashboard: Build Elm App",

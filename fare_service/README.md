@@ -57,14 +57,34 @@ and 3km/max-surge cases, the missing-field 400 response, and the
 GET-not-allowed 405 response were all exercised too. The assertion-based
 test suite (`FareCalculatorTest`) also passes.
 
+This code has also since been compiled and run for real on Windows, via
+Scala 3.9.0 (installed through Coursier) using `scala run
+src/main/scala/fareservice` — confirmed working with no changes needed
+despite the version jump from 2.11 to 3.9.
+
 ## Running it yourself
+
+**If you installed Scala via Coursier** (`cs setup`, the modern route,
+and what actually got used and confirmed working on Windows during this
+project's development):
+
+```bash
+scala run src/main/scala/fareservice
+```
+
+The first run bootstraps Scala CLI's own build tooling (Bloop, etc.) and
+can take a few minutes; after that it's fast. This single command
+recompiles and runs the service in one step.
+
+**If you have a plain `scalac`/`scala` install** (e.g. Scala 2.11, no
+Scala CLI):
 
 ```bash
 scalac -d out src/main/scala/fareservice/*.scala
 java -cp "out:$(find / -name scala-library.jar 2>/dev/null | head -1)" fareservice.Main
 ```
 
-The service listens on port 4002.
+Either way, the service listens on port 4002.
 
 ```bash
 curl http://localhost:4002/health
@@ -72,6 +92,13 @@ curl http://localhost:4002/health
 curl -X POST http://localhost:4002/fare \
   -H "Content-Type: application/json" \
   -d '{"distanceKm": 5.5, "demandLevel": 2}'
+```
+
+On Windows PowerShell, `curl` is aliased to `Invoke-WebRequest`, which
+doesn't understand `-X`/`-d` the same way. Use this instead:
+
+```powershell
+Invoke-RestMethod -Uri http://localhost:4002/fare -Method Post -ContentType "application/json" -Body '{"distanceKm": 5.5, "demandLevel": 2}'
 ```
 
 `demandLevel` maps to a surge multiplier: `0` → 1.0x, `1` → 1.2x,
