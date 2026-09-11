@@ -1,5 +1,8 @@
 # 🚕 Mini Ride-Dispatch Simulator
 
+**🔴 Live demo:** [http://nammayatri.centralindia.cloudapp.azure.com:8080](http://nammayatri.centralindia.cloudapp.azure.com:8080)
+*Deployed on a single Azure VM (Ubuntu 24.04) running all six language runtimes side by side, managed with pm2 for persistence across reboots.*
+
 A polyglot ride-hailing dispatch system — six programming languages, five
 independent services, one live WebSocket dashboard. Riders request rides,
 drivers get matched in real time, fares get calculated through a real
@@ -139,6 +142,18 @@ The orchestrator doesn't install any of these for you — it runs the
 exact same commands you'd type by hand, just all at once with one entry
 point. See `orchestrator/README.md` for exactly what it does and doesn't
 handle.
+
+---
+
+## Deployment
+
+Running live on a single Azure VM (Ubuntu 24.04 LTS, Standard_B2ls_v2)
+in Central India — no Docker, no containers, just the same toolchains
+from the prerequisites table above installed directly on the box.
+`pm2` + `systemd` keep the orchestrator (and all five services) running
+persistently across SSH disconnects and VM reboots.
+
+**Live URL:** http://nammayatri.centralindia.cloudapp.azure.com:8080
 
 ---
 
